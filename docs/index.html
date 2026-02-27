@@ -11,10 +11,13 @@
     <div class="container">
       <!-- タブボタン -->
       <div class="tab-buttons">
-        <button id="league-button" class="active" onclick="switchTab('league')">リーグ</button>
-        <button id="next-match-button" onclick="switchTab('next-match')">次の試合</button>
-        <button id="final-button" onclick="switchTab('final')">決勝</button>
-        <button id="stats-button" onclick="switchTab('stats')">成績ページ</button>
+        <button id="league-button" class="tab-button active" onclick="switchTab('league')">リーグ</button>
+        <button id="next-match-button" class="tab-button" onclick="switchTab('next-match')">次の試合</button>
+        <button id="final-button" class="tab-button" onclick="switchTab('final')">決勝</button>
+        <button id="stats-button" class="tab-button" onclick="switchTab('stats')">成績ページ</button>
+        <button id="fullscreen-button" class="fullscreen-button" onclick="requestContainerFullscreen()">
+          全画面表示
+        </button>
       </div>
 
       <!-- タブ内容 -->
@@ -41,7 +44,7 @@
 
     <script>
       const apiBaseUrl =
-        'https://script.google.com/macros/s/AKfycbyAR8jQYkOgMWlMVkoJDFbv3r9wLvXadD_PS4ckDNrYt-1YRFbH54p2jrkRrHovELK6cQ/exec';
+        'https://script.google.com/macros/s/AKfycbysyZVQ3UMOgMwxFBaWgVKRQts3PJpTx6aHPfHpFAevPvPB6O_fo1BC8r-XgBCAIR8U/exec';
 
       function fetchData(action) {
         const loading = document.getElementById('loading');
@@ -57,9 +60,46 @@
           });
       }
 
+      function updateRootFontSize() {
+        const container = document.querySelector('.container');
+        if (!container) return;
+
+        const base = Math.min(container.clientWidth / 76, container.clientHeight / 42);
+        const fontSize = Math.max(15, Math.min(base, 38));
+        document.documentElement.style.fontSize = `${fontSize}px`;
+      }
+
+      function updateFullscreenButtonLabel() {
+        const button = document.getElementById('fullscreen-button');
+        if (!button) return;
+        button.textContent = document.fullscreenElement ? '全画面解除' : '全画面表示';
+      }
+
+      async function requestContainerFullscreen() {
+        const container = document.querySelector('.container');
+        if (!container) return;
+
+        try {
+          if (!document.fullscreenElement) {
+            if (container.requestFullscreen) {
+              await container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+              container.webkitRequestFullscreen();
+            }
+          } else if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          }
+        } catch (error) {
+          console.error('全画面化に失敗しました', error);
+        } finally {
+          updateRootFontSize();
+          updateFullscreenButtonLabel();
+        }
+      }
+
       // タブを切り替える関数
       function switchTab(tab) {
-        document.querySelectorAll('.tab-buttons button').forEach((button) => button.classList.remove('active'));
+        document.querySelectorAll('.tab-buttons .tab-button').forEach((button) => button.classList.remove('active'));
         document.getElementById(`${tab}-button`).classList.add('active');
         document.querySelectorAll('.tab-content').forEach((content) => content.classList.remove('active'));
         document.getElementById(`${tab}-content`).classList.add('active');
@@ -246,6 +286,13 @@
 
       // 初期データの取得と表示
       window.onload = function () {
+        updateRootFontSize();
+        updateFullscreenButtonLabel();
+        window.addEventListener('resize', updateRootFontSize);
+        document.addEventListener('fullscreenchange', () => {
+          updateRootFontSize();
+          updateFullscreenButtonLabel();
+        });
         switchTab('league'); // 最初に表示するタブ
       };
     </script>
