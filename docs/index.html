@@ -110,13 +110,50 @@
         if (tab === 'stats') fetchData('getLeagues').then(displayStats);
       }
 
+      function fitLeagueToScreen() {
+        const section = document.getElementById('league-section');
+        if (!section) return;
+        const columns = section.querySelectorAll('.team-list-column');
+        if (!columns.length) return;
+
+        let maxItems = 0;
+        columns.forEach((col) => {
+          const count = col.querySelectorAll('.team-list li').length;
+          maxItems = Math.max(maxItems, count);
+        });
+        if (maxItems === 0) return;
+
+        const h2 = columns[0].querySelector('h2');
+        const h2Height = h2
+          ? h2.offsetHeight +
+            (parseInt(getComputedStyle(h2).marginTop) || 0) +
+            (parseInt(getComputedStyle(h2).marginBottom) || 0)
+          : 32;
+        const colPaddingV =
+          (parseInt(getComputedStyle(columns[0]).paddingTop) || 0) +
+          (parseInt(getComputedStyle(columns[0]).paddingBottom) || 0);
+        const sectionHeight = section.clientHeight;
+        const itemHeight = (sectionHeight - h2Height - colPaddingV) / maxItems;
+        const fontSize = Math.max(12, Math.min(itemHeight * 0.6, 48));
+
+        section.querySelectorAll('.team-list li').forEach((li) => {
+          li.style.fontSize = `${fontSize}px`;
+        });
+      }
+
       function displayLeagues(leagues) {
         const section = document.getElementById('league-section');
         section.innerHTML = '';
 
+        if (leagues.length > 0) {
+          section.style.gridTemplateColumns = `repeat(${leagues.length}, 1fr)`;
+        }
+
         leagues.forEach((league) => {
           section.appendChild(createLeagueTeamListColumn(league));
         });
+
+        requestAnimationFrame(() => fitLeagueToScreen());
       }
 
       function createLeagueTeamListColumn(league) {
@@ -193,13 +230,92 @@
         return td;
       }
 
+      function fitTableSection(sectionId) {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        const columns = section.querySelectorAll('.column');
+        if (!columns.length) return;
+
+        // グリッドアイテムをトラック幅いっぱいに広げる
+        columns.forEach((col) => { col.style.width = '100%'; });
+        void section.offsetHeight; // リフロー強制
+
+        // コンテナ全体から逆算して確実な高さを取得する
+        const containerEl = document.querySelector('.container');
+        const tabButtons = document.querySelector('.tab-buttons');
+        const tabContent = section.parentElement;
+        const containerH = containerEl ? containerEl.clientHeight : 720;
+        const btnH = tabButtons ? tabButtons.offsetHeight : 50;
+        const tabPadV = tabContent
+          ? (parseInt(getComputedStyle(tabContent).paddingTop) || 0) +
+            (parseInt(getComputedStyle(tabContent).paddingBottom) || 0)
+          : 0;
+        const sectionHeight = containerH - btnH - tabPadV;
+
+        if (sectionHeight < 50) {
+          requestAnimationFrame(() => fitTableSection(sectionId));
+          return;
+        }
+
+        columns.forEach((col) => {
+          const h2 = col.querySelector('h2');
+          const h2Height = h2
+            ? h2.offsetHeight +
+              (parseInt(getComputedStyle(h2).marginTop) || 0) +
+              (parseInt(getComputedStyle(h2).marginBottom) || 0)
+            : 32;
+          const colPaddingV =
+            (parseInt(getComputedStyle(col).paddingTop) || 0) +
+            (parseInt(getComputedStyle(col).paddingBottom) || 0);
+
+          const rows = col.querySelectorAll('tr');
+          if (!rows.length) return;
+
+          const availableHeight = sectionHeight - h2Height - colPaddingV;
+          const rowHeight = Math.max(20, availableHeight / rows.length);
+          const fontSize = Math.max(10, Math.min(rowHeight * 0.5, 40));
+          const vertPadding = Math.max(2, Math.floor(rowHeight * 0.08));
+
+          rows.forEach((row) => {
+            row.style.height = `${rowHeight}px`;
+          });
+
+          col.querySelectorAll('th, td').forEach((cell) => {
+            cell.style.fontSize = `${fontSize}px`;
+            cell.style.padding = `${vertPadding}px 4px`;
+          });
+        });
+      }
+
+      function fitActiveTab() {
+        const tabs = ['league', 'next-match', 'final', 'stats'];
+        for (const tab of tabs) {
+          const content = document.getElementById(`${tab}-content`);
+          if (content && content.classList.contains('active')) {
+            if (tab === 'league') {
+              fitLeagueToScreen();
+            } else {
+              fitTableSection(`${tab}-section`);
+            }
+            break;
+          }
+        }
+      }
+
       function displayStats(leagues) {
         const section = document.getElementById('stats-section');
         section.innerHTML = '';
 
+        if (leagues.length > 0) {
+          section.style.display = 'grid';
+          section.style.gridTemplateColumns = `repeat(${leagues.length}, 1fr)`;
+        }
+
         leagues.forEach((league) => {
           section.appendChild(createStatsColumn(league));
         });
+
+        requestAnimationFrame(() => requestAnimationFrame(() => fitTableSection('stats-section')));
       }
 
       function createStatsColumn(league) {
@@ -221,6 +337,13 @@
           if (!leagues[m.league]) leagues[m.league] = [];
           leagues[m.league].push(m);
         });
+
+        const numLeagues = Object.keys(leagues).length;
+        if (numLeagues > 0) {
+          section.style.display = 'grid';
+          section.style.gridTemplateColumns = `repeat(${numLeagues}, 1fr)`;
+        }
+
         let tableNumber = 1;
 
         Object.keys(leagues).forEach((lg) => {
@@ -248,11 +371,18 @@
           col.appendChild(table);
           section.appendChild(col);
         });
+
+        requestAnimationFrame(() => requestAnimationFrame(() => fitTableSection('next-match-section')));
       }
 
       function displayFinalTournament(data) {
         const section = document.getElementById('final-section');
         section.innerHTML = '';
+
+        if (data.length > 0) {
+          section.style.display = 'grid';
+          section.style.gridTemplateColumns = `repeat(${data.length}, 1fr)`;
+        }
 
         data.forEach((match) => {
           const col = document.createElement('div');
@@ -282,16 +412,22 @@
           col.appendChild(table);
           section.appendChild(col);
         });
+
+        requestAnimationFrame(() => requestAnimationFrame(() => fitTableSection('final-section')));
       }
 
       // 初期データの取得と表示
       window.onload = function () {
         updateRootFontSize();
         updateFullscreenButtonLabel();
-        window.addEventListener('resize', updateRootFontSize);
+        window.addEventListener('resize', () => {
+          updateRootFontSize();
+          requestAnimationFrame(() => fitActiveTab());
+        });
         document.addEventListener('fullscreenchange', () => {
           updateRootFontSize();
           updateFullscreenButtonLabel();
+          requestAnimationFrame(() => fitActiveTab());
         });
         switchTab('league'); // 最初に表示するタブ
       };
