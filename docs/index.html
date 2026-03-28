@@ -1,111 +1,200 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ハイストリーグ試合情報</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ハイストリーグ試合情報</title>
-  <link rel="stylesheet" href="./style.css" />
-</head>
+  <body>
+    <div class="container">
+      <!-- タブボタン -->
+      <div class="tab-buttons">
+        <button id="league-button" class="tab-button active" onclick="switchTab('league')">リーグ</button>
+        <button id="next-match-button" class="tab-button" onclick="switchTab('next-match')">次の試合</button>
+        <button id="final-button" class="tab-button" onclick="switchTab('final')">決勝</button>
+        <button id="stats-button" class="tab-button" onclick="switchTab('stats')">成績ページ</button>
+        <button id="fullscreen-button" class="fullscreen-button" onclick="requestContainerFullscreen()">
+          全画面表示
+        </button>
+      </div>
 
-<body>
-  <div class="container">
-    <!-- タブボタン -->
-    <div class="tab-buttons">
-      <button id="league-button" class="active" onclick="switchTab('league')">リーグ</button>
-      <button id="next-match-button" onclick="switchTab('next-match')">次の試合</button>
-      <button id="final-button" onclick="switchTab('final')">決勝</button>
-      <button id="total-button" onclick="switchTab('total')">総合表彰</button>
+      <!-- タブ内容 -->
+      <div class="tab-content active" id="league-content">
+        <div id="league-section" class="section"></div>
+      </div>
+
+      <div class="tab-content" id="next-match-content">
+        <div id="next-match-section" class="section"></div>
+      </div>
+
+      <div class="tab-content" id="final-content">
+        <div id="final-section" class="section"></div>
+      </div>
+
+      <div class="tab-content" id="stats-content">
+        <div id="stats-section" class="section"></div>
+      </div>
     </div>
 
-    <!-- タブ内容 -->
-    <div class="tab-content active" id="league-content">
-      <div id="league-section" class="section"></div>
+    <div id="loading">
+      <div id="loadingCircle"></div>
     </div>
 
-    <div class="tab-content" id="next-match-content">
-      <div id="next-match-section" class="section"></div>
-    </div>
+    <script>
+      const apiBaseUrl =
+        'https://script.google.com/macros/s/AKfycbysyZVQ3UMOgMwxFBaWgVKRQts3PJpTx6aHPfHpFAevPvPB6O_fo1BC8r-XgBCAIR8U/exec';
 
-    <div class="tab-content" id="final-content">
-      <div id="final-section" class="section"></div>
-    </div>
+      function fetchData(action) {
+        const loading = document.getElementById('loading');
+        loading.style.display = 'flex';
 
-    <div class="tab-content" id="total-content">
-      <div id="total-section"></div>
-    </div>
-  </div>
+        const url = new URL(apiBaseUrl);
+        url.searchParams.append('action', action);
 
-  <div id="loading">
-    <div id="loadingCircle"></div>
-  </div>
+        return fetch(url)
+          .then((response) => response.json())
+          .finally(() => {
+            loading.style.display = 'none';
+          });
+      }
 
+      function updateRootFontSize() {
+        const container = document.querySelector('.container');
+        if (!container) return;
 
-  <script>
-    const apiBaseUrl = "https://script.google.com/macros/s/AKfycbyAR8jQYkOgMWlMVkoJDFbv3r9wLvXadD_PS4ckDNrYt-1YRFbH54p2jrkRrHovELK6cQ/exec";
+        const base = Math.min(container.clientWidth / 76, container.clientHeight / 42);
+        const fontSize = Math.max(15, Math.min(base, 38));
+        document.documentElement.style.fontSize = `${fontSize}px`;
+      }
 
-    function fetchData(action) {
-      const loading = document.getElementById('loading');
-      loading.style.display = "flex";
+      function updateFullscreenButtonLabel() {
+        const button = document.getElementById('fullscreen-button');
+        if (!button) return;
+        button.textContent = document.fullscreenElement ? '全画面解除' : '全画面表示';
+      }
 
-      const url = new URL(apiBaseUrl);
-      url.searchParams.append('action', action);
+      async function requestContainerFullscreen() {
+        const container = document.querySelector('.container');
+        if (!container) return;
 
-      return fetch(url)
-        .then((response) => response.json())
-        .finally(() => {
-          loading.style.display = 'none';
+        try {
+          if (!document.fullscreenElement) {
+            if (container.requestFullscreen) {
+              await container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+              container.webkitRequestFullscreen();
+            }
+          } else if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          }
+        } catch (error) {
+          console.error('全画面化に失敗しました', error);
+        } finally {
+          updateRootFontSize();
+          updateFullscreenButtonLabel();
+        }
+      }
+
+      // タブを切り替える関数
+      function switchTab(tab) {
+        document.querySelectorAll('.tab-buttons .tab-button').forEach((button) => button.classList.remove('active'));
+        document.getElementById(`${tab}-button`).classList.add('active');
+        document.querySelectorAll('.tab-content').forEach((content) => content.classList.remove('active'));
+        document.getElementById(`${tab}-content`).classList.add('active');
+
+        if (tab === 'league') fetchData('getLeagues').then(displayLeagues);
+        if (tab === 'next-match') fetchData('getNextMatches').then(displayNextMatches);
+        if (tab === 'final') fetchData('getFinalTournament').then(displayFinalTournament);
+        if (tab === 'stats') fetchData('getLeagues').then(displayStats);
+      }
+
+      function fitLeagueToScreen() {
+        const section = document.getElementById('league-section');
+        if (!section) return;
+        const columns = section.querySelectorAll('.team-list-column');
+        if (!columns.length) return;
+
+        let maxItems = 0;
+        columns.forEach((col) => {
+          const count = col.querySelectorAll('.team-list li').length;
+          maxItems = Math.max(maxItems, count);
         });
-    }
+        if (maxItems === 0) return;
 
-    // タブを切り替える関数
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-buttons button').forEach((button) => button.classList.remove('active'));
-      document.getElementById(`${tab}-button`).classList.add('active');
-      document.querySelectorAll('.tab-content').forEach((content) => content.classList.remove('active'));
-      document.getElementById(`${tab}-content`).classList.add('active');
+        const h2 = columns[0].querySelector('h2');
+        const h2Height = h2
+          ? h2.offsetHeight +
+            (parseInt(getComputedStyle(h2).marginTop) || 0) +
+            (parseInt(getComputedStyle(h2).marginBottom) || 0)
+          : 32;
+        const colPaddingV =
+          (parseInt(getComputedStyle(columns[0]).paddingTop) || 0) +
+          (parseInt(getComputedStyle(columns[0]).paddingBottom) || 0);
+        const sectionHeight = section.clientHeight;
+        const itemHeight = (sectionHeight - h2Height - colPaddingV) / maxItems;
+        const fontSize = Math.max(12, Math.min(itemHeight * 0.6, 48));
 
-      if (tab === 'league') fetchData('getLeagues').then(displayLeagues);
-      if (tab === 'next-match') fetchData('getNextMatches').then(displayNextMatches);
-      if (tab === 'final') fetchData('getFinalTournament').then(displayFinalTournament);
-      if (tab === 'total') fetchData('getTotalRanking').then(displayTotalRanking);
-    }
+        section.querySelectorAll('.team-list li').forEach((li) => {
+          li.style.fontSize = `${fontSize}px`;
+        });
+      }
 
-    function displayLeagues(leagues) {
-      const section = document.getElementById("league-section");
-      section.innerHTML = "";
+      function displayLeagues(leagues) {
+        const section = document.getElementById('league-section');
+        section.innerHTML = '';
 
-      leagues.forEach(league => {
-        section.appendChild(createLeagueColumn(league));
-      });
-    }
+        if (leagues.length > 0) {
+          section.style.gridTemplateColumns = `repeat(${leagues.length}, 1fr)`;
+        }
 
-    function createLeagueColumn(league) {
-      const column = document.createElement("div");
-      column.className = "column";
+        leagues.forEach((league) => {
+          section.appendChild(createLeagueTeamListColumn(league));
+        });
 
-      column.appendChild(createTitle(`${league.league}リーグ`));
-      column.appendChild(createLeagueTable(league.teams));
+        requestAnimationFrame(() => fitLeagueToScreen());
+      }
 
-      return column;
-    }
+      function createLeagueTeamListColumn(league) {
+        const column = document.createElement('div');
+        column.className = 'column team-list-column';
 
-    function createTitle(text) {
-      const h2 = document.createElement("h2");
-      h2.textContent = text;
-      return h2;
-    }
+        column.appendChild(createTitle(`${league.league}リーグ`));
+        column.appendChild(createLeagueTeamList(league.teams));
 
-    function createLeagueTable(teams) {
-      const table = document.createElement("table");
-      table.appendChild(createTableHeader());
-      table.appendChild(createTableBody(teams));
-      return table;
-    }
+        return column;
+      }
 
-    function createTableHeader() {
-      const thead = document.createElement("thead");
-      thead.innerHTML = `
+      function createLeagueTeamList(teams) {
+        const list = document.createElement('ol');
+        list.className = 'team-list';
+
+        teams.forEach((team) => {
+          const li = document.createElement('li');
+          li.textContent = team.teamId;
+          list.appendChild(li);
+        });
+
+        return list;
+      }
+
+      function createTitle(text) {
+        const h2 = document.createElement('h2');
+        h2.textContent = text;
+        return h2;
+      }
+
+      function createLeagueTable(teams) {
+        const table = document.createElement('table');
+        table.appendChild(createTableHeader());
+        table.appendChild(createTableBody(teams));
+        return table;
+      }
+
+      function createTableHeader() {
+        const thead = document.createElement('thead');
+        thead.innerHTML = `
     <tr>
       <th>順位</th>
       <th>チーム</th>
@@ -114,145 +203,234 @@
       <th>勝ち数</th>
     </tr>
   `;
-      return thead;
-    }
+        return thead;
+      }
 
-    function createTableBody(teams) {
-      const tbody = document.createElement("tbody");
+      function createTableBody(teams) {
+        const tbody = document.createElement('tbody');
 
-      teams.forEach((team, index) => {
-        const row = document.createElement("tr");
+        teams.forEach((team, index) => {
+          const row = document.createElement('tr');
 
-        row.appendChild(createCell(index + 1));
-        row.appendChild(createCell(team.teamName));
-        row.appendChild(createCell(team.totalPoint));
-        row.appendChild(createCell(team.prelimPoint));
-        row.appendChild(createCell(team.wins));
+          row.appendChild(createCell(index + 1));
+          row.appendChild(createCell(team.teamId));
+          row.appendChild(createCell(team.totalPoint));
+          row.appendChild(createCell(team.prelimPoint));
+          row.appendChild(createCell(team.wins));
 
-        tbody.appendChild(row);
-      });
-
-      return tbody;
-    }
-
-    function createCell(value) {
-      const td = document.createElement("td");
-      td.textContent = value ?? "";
-      return td;
-    }
-
-
-    function displayNextMatches(data) {
-      const section = document.getElementById('next-match-section');
-      section.innerHTML = '';
-
-      const leagues = {};
-      data.forEach((m) => {
-        if (!leagues[m.league]) leagues[m.league] = [];
-        leagues[m.league].push(m);
-      });
-      let tableNumber = 1;
-
-      Object.keys(leagues).forEach((lg) => {
-        const col = document.createElement('div');
-        col.classList.add('column');
-
-        const title = document.createElement('h2');
-        title.textContent = `${lg}リーグ 次の試合`;
-        col.appendChild(title);
-
-        const table = document.createElement('table');
-
-        leagues[lg].forEach((m) => {
-          table.innerHTML += `
-        <tr>
-          <th>${tableNumber}</th>
-          <td>${m.team1Name}</td>
-          <td>vs</td>
-          <td>${m.team2Name}</td>
-        </tr>
-      `;
-          tableNumber++;
+          tbody.appendChild(row);
         });
 
-        col.appendChild(table);
-        section.appendChild(col);
-      });
-    }
+        return tbody;
+      }
 
-    function displayFinalTournament(data) {
-      const section = document.getElementById('final-section');
-      section.innerHTML = '';
+      function createCell(value) {
+        const td = document.createElement('td');
+        td.textContent = value ?? '';
+        return td;
+      }
 
-      data.forEach((match) => {
-        const col = document.createElement('div');
-        col.classList.add('column');
+      function fitTableSection(sectionId) {
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+        const columns = section.querySelectorAll('.column');
+        if (!columns.length) return;
 
-        const title = document.createElement('h2');
-        title.textContent = match.matchType;
-        col.appendChild(title);
+        // グリッドアイテムをトラック幅いっぱいに広げる
+        columns.forEach((col) => { col.style.width = '100%'; });
+        void section.offsetHeight; // リフロー強制
 
-        const table = document.createElement('table');
-        table.innerHTML += `
-      <tr>
-        <td>${match.team1Name}</td>
-        <td>vs</td>
-        <td>${match.team2Name}</td>
-      </tr>
-    `;
+        // コンテナ全体から逆算して確実な高さを取得する
+        const containerEl = document.querySelector('.container');
+        const tabButtons = document.querySelector('.tab-buttons');
+        const tabContent = section.parentElement;
+        const containerH = containerEl ? containerEl.clientHeight : 720;
+        const btnH = tabButtons ? tabButtons.offsetHeight : 50;
+        const tabPadV = tabContent
+          ? (parseInt(getComputedStyle(tabContent).paddingTop) || 0) +
+            (parseInt(getComputedStyle(tabContent).paddingBottom) || 0)
+          : 0;
+        const sectionHeight = containerH - btnH - tabPadV;
 
-        if (match.winnerName) {
-          table.innerHTML += `
-        <tr>
-          <th colspan="3">勝者：${match.winnerName}</th>
-        </tr>
-      `;
+        if (sectionHeight < 50) {
+          requestAnimationFrame(() => fitTableSection(sectionId));
+          return;
         }
 
-        col.appendChild(table);
-        section.appendChild(col);
-      });
-    }
+        columns.forEach((col) => {
+          const h2 = col.querySelector('h2');
+          const h2Height = h2
+            ? h2.offsetHeight +
+              (parseInt(getComputedStyle(h2).marginTop) || 0) +
+              (parseInt(getComputedStyle(h2).marginBottom) || 0)
+            : 32;
+          const colPaddingV =
+            (parseInt(getComputedStyle(col).paddingTop) || 0) +
+            (parseInt(getComputedStyle(col).paddingBottom) || 0);
 
-    function displayTotalRanking(data) {
-      const section = document.getElementById('total-section');
-      section.innerHTML = '';
+          const rows = col.querySelectorAll('tr');
+          if (!rows.length) return;
 
-      const col = document.createElement('div');
-      col.classList.add('column');
+          const availableHeight = sectionHeight - h2Height - colPaddingV;
+          const rowHeight = Math.max(20, availableHeight / rows.length);
+          const fontSize = Math.max(10, Math.min(rowHeight * 0.5, 40));
+          const vertPadding = Math.max(2, Math.floor(rowHeight * 0.08));
 
-      const title = document.createElement('h2');
-      title.textContent = '総合表彰';
-      col.appendChild(title);
+          rows.forEach((row) => {
+            row.style.height = `${rowHeight}px`;
+          });
 
-      const table = document.createElement('table');
-      table.innerHTML = `
-    <tr>
-      <th>順位</th>
-      <th>チーム</th>
-      <th>総合ポイント</th>
-    </tr>
-  `;
+          col.querySelectorAll('th, td').forEach((cell) => {
+            cell.style.fontSize = `${fontSize}px`;
+            cell.style.padding = `${vertPadding}px 4px`;
+          });
+        });
+      }
 
-      data.forEach((t) => {
-        table.innerHTML += `
+      function fitActiveTab() {
+        const tabs = ['league', 'next-match', 'final', 'stats'];
+        for (const tab of tabs) {
+          const content = document.getElementById(`${tab}-content`);
+          if (content && content.classList.contains('active')) {
+            if (tab === 'league') {
+              fitLeagueToScreen();
+            } else {
+              fitTableSection(`${tab}-section`);
+            }
+            break;
+          }
+        }
+      }
+
+      function displayStats(leagues) {
+        const section = document.getElementById('stats-section');
+        section.innerHTML = '';
+
+        if (leagues.length > 0) {
+          section.style.display = 'grid';
+          section.style.gridTemplateColumns = `repeat(${leagues.length}, 1fr)`;
+        }
+
+        leagues.forEach((league) => {
+          section.appendChild(createStatsColumn(league));
+        });
+
+        requestAnimationFrame(() => requestAnimationFrame(() => fitTableSection('stats-section')));
+      }
+
+      function createStatsColumn(league) {
+        const column = document.createElement('div');
+        column.className = 'column';
+
+        column.appendChild(createTitle(`${league.league}リーグ`));
+        column.appendChild(createLeagueTable(league.teams));
+
+        return column;
+      }
+
+      function displayNextMatches(data) {
+        const section = document.getElementById('next-match-section');
+        section.innerHTML = '';
+
+        const leagues = {};
+        data.forEach((m) => {
+          if (!leagues[m.league]) leagues[m.league] = [];
+          leagues[m.league].push(m);
+        });
+
+        const numLeagues = Object.keys(leagues).length;
+        if (numLeagues > 0) {
+          section.style.display = 'grid';
+          section.style.gridTemplateColumns = `repeat(${numLeagues}, 1fr)`;
+        }
+
+        let tableNumber = 1;
+
+        Object.keys(leagues).forEach((lg) => {
+          const col = document.createElement('div');
+          col.classList.add('column');
+
+          const title = document.createElement('h2');
+          title.textContent = `${lg}リーグ 次の試合`;
+          col.appendChild(title);
+
+          const table = document.createElement('table');
+
+          leagues[lg].forEach((m) => {
+            table.innerHTML += `
+        <tr>
+          <th>${tableNumber}</th>
+                <td>${m.team1Id}</td>
+                <td>vs</td>
+                <td>${m.team2Id}</td>
+              </tr>
+            `;
+            tableNumber++;
+          });
+
+          col.appendChild(table);
+          section.appendChild(col);
+        });
+
+        requestAnimationFrame(() => requestAnimationFrame(() => fitTableSection('next-match-section')));
+      }
+
+      function displayFinalTournament(data) {
+        const section = document.getElementById('final-section');
+        section.innerHTML = '';
+
+        if (data.length > 0) {
+          section.style.display = 'grid';
+          section.style.gridTemplateColumns = `repeat(${data.length}, 1fr)`;
+        }
+
+        data.forEach((match) => {
+          const col = document.createElement('div');
+          col.classList.add('column');
+
+          const title = document.createElement('h2');
+          title.textContent = match.matchType;
+          col.appendChild(title);
+
+          const table = document.createElement('table');
+          table.innerHTML += `
       <tr>
-        <td>${t.rank}</td>
-        <td>${t.teamName}</td>
-        <td>${t.totalPoint}</td>
-      </tr>
-    `;
-      });
+              <td>${match.team1Id}</td>
+              <td>vs</td>
+              <td>${match.team2Id}</td>
+            </tr>
+          `;
 
-      col.appendChild(table);
-      section.appendChild(col);
-    }
+          if (match.winnerId) {
+            table.innerHTML += `
+              <tr>
+                <th colspan="3">勝者：${match.winnerId}</th>
+              </tr>
+            `;
+          }
 
-    // 初期データの取得と表示
-    window.onload = function () {
-      switchTab('league'); // 最初に表示するタブ
-    };
-  </script>
-</body>
+          col.appendChild(table);
+          section.appendChild(col);
+        });
 
+        requestAnimationFrame(() => requestAnimationFrame(() => fitTableSection('final-section')));
+      }
+
+      // 初期データの取得と表示
+      window.onload = function () {
+        updateRootFontSize();
+        updateFullscreenButtonLabel();
+        window.addEventListener('resize', () => {
+          updateRootFontSize();
+          requestAnimationFrame(() => fitActiveTab());
+        });
+        document.addEventListener('fullscreenchange', () => {
+          updateRootFontSize();
+          updateFullscreenButtonLabel();
+          requestAnimationFrame(() => fitActiveTab());
+        });
+        switchTab('league'); // 最初に表示するタブ
+      };
+    </script>
+  </body>
 </html>
