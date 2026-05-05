@@ -197,12 +197,26 @@ td {
   width: 41%;
 }
 
+#final-section .column {
+  min-height: 0;
+}
+
+#final-section td,
+#final-section th {
+  white-space: normal;
+  word-break: break-all;
+  text-overflow: clip;
+}
+
 #final-section td {
   width: calc(50% - 25px);
 }
 
 #final-section td:nth-child(2) {
   width: 50px;
+  white-space: nowrap;
+  word-break: normal;
+  text-align: center;
 }
 
 th {
