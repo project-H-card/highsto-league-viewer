@@ -197,6 +197,40 @@ td {
   width: 41%;
 }
 
+#side-match-section th:nth-child(1) {
+  width: 8%;
+  text-align: center;
+}
+
+#side-match-section td:nth-child(2) {
+  width: 41%;
+}
+
+#side-match-section td:nth-child(3) {
+  width: 10%;
+  text-align: center;
+}
+
+#side-match-section td:nth-child(4) {
+  width: 41%;
+}
+
+#side-match-section tr.duplicate td {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+#final-section .column {
+  min-height: 0;
+}
+
+#final-section td,
+#final-section th {
+  white-space: normal;
+  word-break: break-all;
+  text-overflow: clip;
+}
+
 #final-section td {
   width: calc(50% - 25px);
 }
