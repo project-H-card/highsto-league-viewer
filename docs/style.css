@@ -220,6 +220,7 @@ td {
   color: #856404;
 }
 
+
 #final-section .column {
   min-height: 0;
 }
@@ -237,6 +238,9 @@ td {
 
 #final-section td:nth-child(2) {
   width: 50px;
+  white-space: nowrap;
+  word-break: normal;
+  text-align: center;
 }
 
 th {

@@ -250,7 +250,9 @@
         if (!columns.length) return;
 
         // グリッドアイテムをトラック幅いっぱいに広げる
-        columns.forEach((col) => { col.style.width = '100%'; });
+        columns.forEach((col) => {
+          col.style.width = '100%';
+        });
         void section.offsetHeight; // リフロー強制
 
         // コンテナ全体から逆算して確実な高さを取得する
@@ -271,6 +273,7 @@
         }
 
         columns.forEach((col) => {
+          const colHeight = col.clientHeight || sectionHeight;
           const h2 = col.querySelector('h2');
           const h2Height = h2
             ? h2.offsetHeight +
@@ -278,13 +281,12 @@
               (parseInt(getComputedStyle(h2).marginBottom) || 0)
             : 32;
           const colPaddingV =
-            (parseInt(getComputedStyle(col).paddingTop) || 0) +
-            (parseInt(getComputedStyle(col).paddingBottom) || 0);
+            (parseInt(getComputedStyle(col).paddingTop) || 0) + (parseInt(getComputedStyle(col).paddingBottom) || 0);
 
           const rows = col.querySelectorAll('tr');
           if (!rows.length) return;
 
-          const availableHeight = sectionHeight - h2Height - colPaddingV;
+          const availableHeight = colHeight - h2Height - colPaddingV;
           const rowHeight = Math.max(20, availableHeight / rows.length);
           const fontSize = Math.max(10, Math.min(rowHeight * 0.5, 40));
           const vertPadding = Math.max(2, Math.floor(rowHeight * 0.08));
@@ -293,10 +295,21 @@
             row.style.height = `${rowHeight}px`;
           });
 
+          let currentFontSize = fontSize;
           col.querySelectorAll('th, td').forEach((cell) => {
-            cell.style.fontSize = `${fontSize}px`;
+            cell.style.fontSize = `${currentFontSize}px`;
             cell.style.padding = `${vertPadding}px 4px`;
           });
+
+          // テキスト折り返しで列からはみ出す場合はフォントを縮小
+          void col.offsetHeight;
+          while (col.scrollHeight > col.clientHeight && currentFontSize > 10) {
+            currentFontSize = Math.max(10, currentFontSize * 0.85);
+            col.querySelectorAll('th, td').forEach((cell) => {
+              cell.style.fontSize = `${currentFontSize}px`;
+            });
+            void col.offsetHeight;
+          }
         });
       }
 
@@ -393,8 +406,12 @@
         section.innerHTML = '';
 
         if (data.length > 0) {
+          const cols = data.length >= 4 ? Math.ceil(data.length / 2) : data.length;
+          const gridRows = Math.ceil(data.length / cols);
           section.style.display = 'grid';
-          section.style.gridTemplateColumns = `repeat(${data.length}, 1fr)`;
+          section.style.height = '100%';
+          section.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+          section.style.gridTemplateRows = `repeat(${gridRows}, 1fr)`;
         }
 
         data.forEach((match) => {
@@ -519,6 +536,7 @@
 
         requestAnimationFrame(() => requestAnimationFrame(() => fitTableSection('side-match-section')));
       }
+
 
       // 初期データの取得と表示
       window.onload = function () {
